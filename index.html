@@ -84,12 +84,16 @@ th {
 .btn-delete { background: #dc3545; }
 </style>
 
-<!-- ✅ SUPABASE SDK (FIXED) -->
+<!-- ✅ SUPABASE SDK (CORRECT) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SUPABASE_URL = "https://dpozdmlfmyqikesgjiur.supabase.co";
-const SUPABASE_KEY = "sb_publishable_cp_uCIrcsSMIMh57gdZZRQ_lq8hLBBq";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const SUPABASE_URL = "https://dpozdmlfmyqikesgjiur.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_cp_uCIrcsSMIMh57gdZZRQ_lq8hLBBq";
+
+  const supabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
 </script>
 </head>
 
