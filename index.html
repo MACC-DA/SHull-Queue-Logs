@@ -137,7 +137,7 @@ const supabaseClient = window.supabase.createClient(
 let queueBody, nameInput, currentData = [];
 
 /* ✅ FIXED EMAIL RECIPIENTS */
-const EMAIL_TO = "mark.anthony.colegado@tsuneishi.com";
+const EMAIL_TO = "reponte michelle mhe <michelle.mhe.reponte@tsuneishi.com>; daniel maria elizabeth <maria.elizabeth.daniel@tsuneishi.com>; oacan rolly <rolly.oacan@tsuneishi.com>; abejar jomar <jomar.abejar@tsuneishi.com>; barbero beverly marie <beverly.marie.barbero@tsuneishi.com>; lastrado leonard joshua <leonard.joshua.lastrado@tsuneishi.com>; tenebro christian lieg <christian.lieg.tenebro@tsuneishi.com>; bedico joseph roi <joseph.roi.bedico@tsuneishi.com>; lacuna carlo <carlo.lacuna@tsuneishi.com>; saludo ma. fatima <ma.fatima.saludo@tsuneishi.com>; rabanes angelie <angelie.rabanes@tsuneishi.com>; solon joseph <joseph.solon@tsuneishi.com>; calledo juancho <juancho.calledo@tsuneishi.com>; pagula john mark <john.mark.pagula@tsuneishi.com>; sotto jason <jason.sotto@tsuneishi.com>; dayot jerson <jerson.dayot@tsuneishi.com>; luca leanne grace <leanne.grace.luca@tsuneishi.com>; juablar charwin <charwin.juablar@tsuneishi.com>; mallorca riza mae <riza.mae.mallorca@tsuneishi.com>; montes shawn rey <shawn.rey.montes@tsuneishi.com>; fernandez aljohn <aljohn.fernandez@tsuneishi.com>; arobo john gualbert <john.gualbert.arobo@tsuneishi.com>,mark.anthony.colegado@tsuneishi.com";
 const EMAIL_CC = "";
 
 /* ✅ Outlook mail helper */
@@ -243,7 +243,7 @@ async function setOngoing(id) {
 
   openOutlookEmail(
     `Smarthull License - ON-GOING: ${row.name}`,
-    `Process ON-GOING.\n\nUser: ${row.name}\nStart: ${now.toLocaleTimeString()}\n\n— SHull Queue`
+    `Process ON-GOING.\n\nUser: ${row.name}\nStart: ${now.toLocaleTimeString()}\n\n— SHull Queue https://macc-da.github.io/SHull-Queue-Logs/`
   );
 
   loadFromDB();
@@ -263,13 +263,13 @@ async function setDone(id) {
 
   openOutlookEmail(
     `Smarthull License - Completed: ${row.name}`,
-    `Process COMPLETED.\n\nTask: ${row.name}\nStart: ${row.start_time}\nEnd: ${now.toLocaleTimeString()}\nTime: ${consumed}\n\n— SHull Queue`
+    `Process COMPLETED.\n\nUser: ${row.name}\nStart: ${row.start_time}\nEnd: ${now.toLocaleTimeString()}\nTime: ${consumed}\n\n— SHull Queue https://macc-da.github.io/SHull-Queue-Logs/`
   );
 
   loadFromDB();
 }
 
-/* ✅ PASS → EMAIL (NEW) */
+/* ✅ PASS → EMAIL */
 async function passRow(id) {
   const row = currentData.find(r => r.id === id);
 
@@ -284,7 +284,7 @@ async function passRow(id) {
 
   openOutlookEmail(
     `Smarthull License - Passed: ${row.name}`,
-    `PASSED.\n\nTask: ${row.name}\nAction: Returned to queue\n\n— SHull Queue`
+    `PASSED.\n\nUser: ${row.name}\nAction: Returned to queue\n\n— SHull Queue https://macc-da.github.io/SHull-Queue-Logs/`
   );
 
   loadFromDB();
