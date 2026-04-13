@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHull Queue - Professional Log Manager</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; padding: 20px; }
+        .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 1150px; }
+        h2 { color: #2c3e50; text-align: center; margin-bottom: 25px; border-bottom: 3px solid #1a73e8; padding-bottom: 10px; }
+        
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; outline: none; font-size: 1rem; }
+        
+        .add-btn { padding: 10px 25px; background-color: #1a73e8; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .save-btn { padding: 10px 25px; background-color: #6c5ce7; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .clear-btn { padding: 10px 15px; background-color: #e67e22; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.8rem; margin-left: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 14px; text-align: center; border-bottom: 1px solid #eee; }
+        th { background-color: #f8f9fa; color: #7f8c8d; font-size: 0.75rem; text-transform: uppercase; }
+        
+        .status-pill { padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: inline-block; min-width: 85px; }
+        .waiting { background: #eee; color: #666; }
+        .ongoing { background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0; }
+        .done { background: #e8f5e9; color: #2e7d32; }
+
+        .btn-group { display: flex; gap: 6px; justify-content: center; align-items: center; }
+        .action-btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; }
+        .btn-og { background: #17a2b8; color: white; }
+        .btn-done { background: #28a745; color: white; }
+        .btn-pass { background: #6c757d; color: white; }
+        .btn-delete { background: #dc3545; color: white; }
+        
+        .hidden { display: none !important; }
+        .time-text, .result-text { font-family: 'Courier New', monospace; font-weight: bold; color: #444; }
+        tr.active-row { background-color: #f0f7ff; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-actions">
+        <h2>SHull Queue Controller</h2>
+        <div>
+            <button class="save-btn" onclick="saveLogReport()">Save to Log-Reports.txt</button>
+            <button class="clear-btn" onclick="clearData()">Clear All</button>
+        </div>
+    </div>
+    
+    <div class="input-group">
+        <input type="text" id="nameInput" placeholder="Enter Client or Task Name...">
+        <button class="add-btn" onclick="addToQueue()">Add to Queue</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Status</th>
+                <th>Remarks</th>
+                <th>Time Consumed</th>
+            </tr>
+        </thead>
+        <tbody id="queueBody"></tbody>
+    </table>
+</div>
+
+<script>
+    let fileHandle = null; // Remembers the file location for the session
+
+    // --- 1. PERSISTENCE (LocalStorage) ---
+    function saveToStorage() {
+        const rows = Array.from(document.querySelectorAll('#queueBody tr'));
+        const data = rows.map(row => ({
+            name: row.querySelector('.row-name').innerText,
+            start: row.querySelector('.start-time').innerText,
+            end: row.querySelector('.end-time').innerText,
+            status: row.querySelector('.status-pill').innerText,
+            statusClass: row.querySelector('.status-pill').className,
+            rawStart: row.getAttribute('data-start'),
+            result: row.querySelector('.result-text').innerText
+        }));
+        localStorage.setItem('shull_queue_data', JSON.stringify(data));
+    }
+
+    function loadFromStorage() {
+        const saved = localStorage.getItem('shull_queue_data');
+        if (!saved) return;
+        JSON.parse(saved).forEach(item => createRow(item));
+        refreshUI();
+    }
+
+    function clearData() {
+        if (confirm("Wipe all records?")) {
+            localStorage.removeItem('shull_queue_data');
+            location.reload();
+        }
+    }
+
+    // --- 2. CORE LOGIC ---
+    function createRow(item) {
+        const row = document.createElement('tr');
+        row.setAttribute('data-start', item.rawStart);
+        if (item.status === "On-going") row.classList.add('active-row');
+
+        row.innerHTML = `
+            <td><strong class="row-name">${item.name}</strong></td>
+            <td class="time-text start-time">${item.start}</td>
+            <td class="time-text end-time">${item.end}</td>
+            <td><span class="${item.statusClass}">${item.status}</span></td>
+            <td>
+                <div class="btn-group">
+                    <button class="action-btn btn-og" onclick="setOngoing(this)">On-going</button>
+                    <button class="action-btn btn-done" onclick="setDone(this)">Done</button>
+                    <button class="action-btn btn-pass" onclick="passRow(this)">Pass</button>
+                    <button class="action-btn btn-delete" onclick="deleteRow(this)">X</button>
+                </div>
+            </td>
+            <td class="result-text">${item.result}</td>
+        `;
+        document.getElementById('queueBody').appendChild(row);
+    }
+
+    function addToQueue() {
+        const input = document.getElementById('nameInput');
+        if (!input.value.trim()) return;
+        createRow({
+            name: input.value, start: "--:--:--", end: "--:--:--", 
+            status: "Waiting", statusClass: "status-pill waiting", 
+            rawStart: "0", result: "--"
+        });
+        input.value = "";
+        refreshUI();
+        saveToStorage();
+    }
+
+    function setOngoing(btn) {
+        if (document.querySelector('.ongoing')) {
+            alert("Finish the active 'On-going' task first!");
+            return;
+        }
+        const row = btn.closest('tr');
+        const now = new Date();
+        row.setAttribute('data-start', now.getTime());
+        row.querySelector('.start-time').innerText = now.toLocaleTimeString();
+        const pill = row.querySelector('.status-pill');
+        pill.innerText = "On-going";
+        pill.className = "status-pill ongoing";
+        row.classList.add('active-row');
+        refreshUI();
+        saveToStorage();
+    }
+
+    function setDone(btn) {
+        const row = btn.closest('tr');
+        const now = new Date();
+        const pill = row.querySelector('.status-pill');
+        pill.innerText = "Done";
+        pill.className = "status-pill done";
+        row.classList.remove('active-row');
+        row.querySelector('.end-time').innerText = now.toLocaleTimeString();
+        
+        const start = parseInt(row.getAttribute('data-start'));
+        if (start > 0) {
+            row.querySelector('.result-text').innerText = calculateDiff(now.getTime() - start);
+        }
+        
+        refreshUI();
+        // Auto-start next
+        const next = Array.from(document.querySelectorAll('#queueBody tr')).find(r => r.querySelector('.status-pill').innerText === "Waiting");
+        if (next) autoStart(next);
+        saveToStorage();
+    }
+
+    function autoStart(row) {
+        const now = new Date();
+        row.setAttribute('data-start', now.getTime());
+        row.querySelector('.start-time').innerText = now.toLocaleTimeString();
+        const pill = row.querySelector('.status-pill');
+        pill.innerText = "On-going";
+        pill.className = "status-pill ongoing";
+        row.classList.add('active-row');
+        refreshUI();
+    }
+
+    function passRow(btn) {
+        const row = btn.closest('tr');
+        const pill = row.querySelector('.status-pill');
+        pill.innerText = "Waiting";
+        pill.className = "status-pill waiting";
+        row.querySelector('.start-time').innerText = "--:--:--";
+        row.setAttribute('data-start', '0');
+        row.classList.remove('active-row');
+        document.getElementById('queueBody').appendChild(row);
+        refreshUI();
+        saveToStorage();
+    }
+
+    function deleteRow(btn) {
+        if (confirm("Delete this record?")) {
+            btn.closest('tr').remove();
+            refreshUI();
+            saveToStorage();
+        }
+    }
+
+    function calculateDiff(ms) {
+        let s = Math.floor(ms / 1000), m = Math.floor(s / 60), h = Math.floor(m / 60);
+        s %= 60; m %= 60;
+        if (h === 0 && m === 0) return `${s} secs`;
+        if (h === 0) return `${m}:${s.toString().padStart(2, '0')} mins`;
+        return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')} hr`;
+    }
+
+    // --- 3. EXPORT LOGIC ---
+    async function saveLogReport() {
+        const rows = Array.from(document.querySelectorAll('#queueBody tr'));
+        if (rows.length === 0) return;
+
+        let txt = "SHULL QUEUE REPORT - " + new Date().toLocaleString() + "\n";
+        txt += "=".repeat(80) + "\n";
+        txt += String("NAME").padEnd(30) + String("START").padEnd(15) + String("END").padEnd(15) + "CONSUMED\n";
+        txt += "-".repeat(80) + "\n";
+
+        rows.forEach(r => {
+            const n = r.querySelector('.row-name').innerText.substring(0, 28).padEnd(30);
+            const s = r.querySelector('.start-time').innerText.padEnd(15);
+            const e = r.querySelector('.end-time').innerText.padEnd(15);
+            const c = r.querySelector('.result-text').innerText;
+            txt += `${n}${s}${e}${c}\n`;
+        });
+
+        try {
+            if (!fileHandle) {
+                fileHandle = await window.showSaveFilePicker({
+                    suggestedName: 'Log-Reports.txt',
+                    types: [{ description: 'Text File', accept: {'text/plain': ['.txt']} }]
+                });
+            }
+            const writable = await fileHandle.createWritable();
+            await writable.write(txt);
+            await writable.close();
+            alert("Updated: Log-Reports.txt");
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                const blob = new Blob([txt], { type: 'text/plain' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = "Log-Reports.txt";
+                a.click();
+            }
+        }
+    }
+
+    function refreshUI() {
+        const tbody = document.getElementById('queueBody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const priority = { "Done": 1, "On-going": 2, "Waiting": 3 };
+        
+        rows.sort((a, b) => priority[a.querySelector('.status-pill').innerText] - priority[b.querySelector('.status-pill').innerText]);
+        rows.forEach(row => tbody.appendChild(row));
+
+        const activeExists = !!document.querySelector('.ongoing');
+        rows.forEach(row => {
+            const status = row.querySelector('.status-pill').innerText;
+            row.querySelector('.btn-og').classList.toggle('hidden', activeExists || status === "Done");
+            row.querySelector('.btn-done').classList.toggle('hidden', status !== "On-going");
+            row.querySelector('.btn-pass').classList.toggle('hidden', status === "Done");
+            row.querySelector('.btn-delete').classList.toggle('hidden', status === "Done");
+        });
+    }
+
+    window.onload = loadFromStorage;
+    document.getElementById("nameInput").addEventListener("keypress", (e) => { if (e.key === "Enter") addToQueue(); });
+</script>
+
+</body>
+</html>
