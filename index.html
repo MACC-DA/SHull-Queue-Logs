@@ -1,4 +1,5 @@
-<!DOCTYPE html><!DOCTYPE html="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -43,15 +44,15 @@ input {
   border:none;
   border-radius:8px;
   padding:10px 25px;
-  cursor:pointer;
   font-weight:bold;
+  cursor:pointer;
 }
 table {
   width:100%;
   border-collapse:collapse;
 }
 th, td {
-  padding:12px;
+  padding:14px;
   text-align:center;
   border-bottom:1px solid #eee;
 }
@@ -95,14 +96,15 @@ th {
 }
 </style>
 
-<!-- Supabase SDK -->
-https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2script>
-<script>
+<!-- ✅ SUPABASE SDK (FIXED) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js<script>
   const SUPABASE_URL = "https://dpozdmlfmyqikesgjiur.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwb3pkbWxmbXlxaWtlc2dqaXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMjQ2NjYsImV4cCI6MjA5MTYwMDY2Nn0.a60aUUFBP-4HaGKKxfwpRJKk73Z8WNJX_N_G3SMuJso";
 
-  const { createClient } = window.supabase;
-  const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
 </script>
 </head>
 
@@ -137,7 +139,7 @@ window.onload = () => {
   queueBody = document.getElementById("queueBody");
   nameInput = document.getElementById("nameInput");
   loadFromDB();
-  setInterval(loadFromDB, 30000); // auto refresh
+  setInterval(loadFromDB, 30000);
 };
 
 function calculateDiff(ms) {
@@ -223,7 +225,7 @@ async function setOngoing(id) {
 
 async function setDone(id) {
   const row=currentData.find(r=>r.id===id);
-  if(!row || row.status!=="On-going") return;
+  if(!row) return;
 
   const now=new Date();
   const consumed=calculateDiff(now.getTime()-row.started_at);
@@ -244,7 +246,7 @@ async function passRow(id) {
     end_time:null,
     started_at:null,
     time_consumed:null,
-    sort_order: Date.now() // ✅ move to last
+    sort_order: Date.now()
   }).eq("id", id);
 
   loadFromDB();
@@ -258,3 +260,4 @@ async function deleteRow(id) {
 </script>
 </body>
 </html>
+``
