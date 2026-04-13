@@ -96,15 +96,16 @@ th {
 }
 </style>
 
-<!-- ✅ SUPABASE SDK (FIXED) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js<script>
-  const SUPABASE_URL = "https://dpozdmlfmyqikesgjiur.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwb3pkbWxmbXlxaWtlc2dqaXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMjQ2NjYsImV4cCI6MjA5MTYwMDY2Nn0.a60aUUFBP-4HaGKKxfwpRJKk73Z8WNJX_N_G3SMuJso";
+<!-- ✅ SUPABASE SDK (CORRECT) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://dpozdmlfmyqikesgjiur.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwb3pkbWxmbXlxaWtlc2dqaXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMjQ2NjYsImV4cCI6MjA5MTYwMDY2Nn0.a60aUUFBP-4HaGKKxfwpRJKk73Z8WNJX_N_G3SMuJso";
 
-  const supabaseClient = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 </script>
 </head>
 
@@ -121,8 +122,8 @@ th {
     <thead>
       <tr>
         <th>Name</th>
-        <th>Start Time</th>
-        <th>End Time</th>
+        <th>Start</th>
+        <th>End</th>
         <th>Status</th>
         <th>Remarks</th>
         <th>Time Consumed</th>
@@ -134,6 +135,20 @@ th {
 
 <script>
 let queueBody, nameInput, currentData = [];
+
+/* ✅ FIXED EMAIL RECIPIENTS */
+const EMAIL_TO = "operations@company.com";
+const EMAIL_CC = "supervisor@company.com,manager@company.com";
+
+/* ✅ Outlook mail helper */
+function openOutlookEmail(subject, body) {
+  const mailto =
+    `mailto:${encodeURIComponent(EMAIL_TO)}` +
+    `?cc=${encodeURIComponent(EMAIL_CC)}` +
+    `&subject=${encodeURIComponent(subject)}` +
+    `&body=${encodeURIComponent(body)}`;
+  window.open(mailto, "_blank");
+}
 
 window.onload = () => {
   queueBody = document.getElementById("queueBody");
@@ -151,13 +166,12 @@ function calculateDiff(ms) {
 }
 
 async function loadFromDB() {
-  const { data, error } = await supabaseClient
+  const { data } = await supabaseClient
     .from("queue")
     .select("*")
     .order("sort_order", { ascending:true });
 
-  if(error || !Array.isArray(data)) return;
-
+  if(!Array.isArray(data)) return;
   currentData = data;
   queueBody.innerHTML = "";
   data.forEach(createRow);
@@ -176,21 +190,19 @@ function createRow(item) {
       <button class="action-btn btn-pass" onclick="passRow(${id})">Pass</button>
       <button class="action-btn btn-delete" onclick="deleteRow(${id})">X</button>
     `;
-  } 
-  else if(item.status === "On-going") {
+  } else if(item.status === "On-going") {
     actions = `<button class="action-btn btn-done" onclick="setDone(${id})">Done</button>`;
   }
 
   queueBody.innerHTML += `
     <tr>
       <td><strong>${item.name}</strong></td>
-      <td class="time-text">${item.start_time ?? "--:--:--"}</td>
-      <td class="time-text">${item.end_time ?? "--:--:--"}</td>
+      <td class="time-text">${item.start_time ?? "--"}</td>
+      <td class="time-text">${item.end_time ?? "--"}</td>
       <td><span class="status-pill ${item.status.toLowerCase().replace("-","")}">${item.status}</span></td>
       <td><div class="btn-group">${actions}</div></td>
       <td class="result-text">${item.time_consumed ?? "--"}</td>
-    </tr>
-  `;
+    </tr>`;
 }
 
 async function addToQueue() {
@@ -200,64 +212,82 @@ async function addToQueue() {
   await supabaseClient.from("queue").insert([{
     name,
     status:"Waiting",
-    sort_order: Date.now()
+    sort_order:Date.now()
   }]);
 
   nameInput.value="";
   loadFromDB();
 }
 
+/* ✅ ON-GOING → EMAIL */
 async function setOngoing(id) {
+  const row = currentData.find(r => r.id === id);
   if(currentData.some(r => r.status === "On-going")) {
-    alert("Finish the active On-going task first.");
+    alert("Finish active task first.");
     return;
   }
 
-  const now=new Date();
+  const now = new Date();
   await supabaseClient.from("queue").update({
     status:"On-going",
     start_time: now.toLocaleTimeString(),
     started_at: now.getTime()
-  }).eq("id", id);
+  }).eq("id",id);
+
+  openOutlookEmail(
+    `🟡 Task Started: ${row.name}`,
+    `Task set to ON-GOING.\n\nTask: ${row.name}\nStart: ${now.toLocaleTimeString()}\n\n— SHull Queue`
+  );
 
   loadFromDB();
 }
 
+/* ✅ DONE → EMAIL */
 async function setDone(id) {
-  const row=currentData.find(r=>r.id===id);
-  if(!row) return;
-
-  const now=new Date();
-  const consumed=calculateDiff(now.getTime()-row.started_at);
+  const row = currentData.find(r => r.id === id);
+  const now = new Date();
+  const consumed = calculateDiff(now.getTime() - row.started_at);
 
   await supabaseClient.from("queue").update({
     status:"Done",
     end_time: now.toLocaleTimeString(),
     time_consumed: consumed
-  }).eq("id", id);
+  }).eq("id",id);
+
+  openOutlookEmail(
+    `✅ Task Completed: ${row.name}`,
+    `Task COMPLETED.\n\nTask: ${row.name}\nStart: ${row.start_time}\nEnd: ${now.toLocaleTimeString()}\nTime: ${consumed}\n\n— SHull Queue`
+  );
 
   loadFromDB();
 }
 
+/* ✅ PASS → EMAIL (NEW) */
 async function passRow(id) {
+  const row = currentData.find(r => r.id === id);
+
   await supabaseClient.from("queue").update({
     status:"Waiting",
     start_time:null,
     end_time:null,
     started_at:null,
     time_consumed:null,
-    sort_order: Date.now()
-  }).eq("id", id);
+    sort_order:Date.now()
+  }).eq("id",id);
+
+  openOutlookEmail(
+    `⏩ Task Passed: ${row.name}`,
+    `Task has been PASSED.\n\nTask: ${row.name}\nAction: Returned to queue\n\n— SHull Queue`
+  );
 
   loadFromDB();
 }
 
 async function deleteRow(id) {
   if(!confirm("Delete this record?")) return;
-  await supabaseClient.from("queue").delete().eq("id", id);
+  await supabaseClient.from("queue").delete().eq("id",id);
   loadFromDB();
 }
 </script>
 </body>
 </html>
-``
