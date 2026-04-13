@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SHull Queue - Shared Log Manager</title>
+<title>SHull Queue - Professional Log Manager</title>
 
 <style>
 body {
   font-family: 'Segoe UI', sans-serif;
-  background: #f4f7f6;
+  background-color: #f4f7f6;
   display: flex;
   justify-content: center;
   padding: 20px;
@@ -19,10 +19,12 @@ body {
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.1);
   width: 100%;
-  max-width: 1100px;
+  max-width: 1150px;
 }
 h2 {
+  color: #2c3e50;
   text-align: center;
+  margin-bottom: 25px;
   border-bottom: 3px solid #1a73e8;
   padding-bottom: 10px;
 }
@@ -34,29 +36,30 @@ h2 {
 input {
   flex: 1;
   padding: 12px;
-  border-radius: 8px;
   border: 2px solid #ddd;
+  border-radius: 8px;
 }
-button {
-  padding: 10px 20px;
+.add-btn {
+  padding: 10px 25px;
+  background-color: #1a73e8;
+  color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   font-weight: bold;
 }
-.add-btn { background: #1a73e8; color: white; }
-
 table {
   width: 100%;
   border-collapse: collapse;
 }
 th, td {
-  padding: 12px;
+  padding: 14px;
   text-align: center;
   border-bottom: 1px solid #eee;
 }
 th {
-  background: #f8f9fa;
+  background-color: #f8f9fa;
+  color: #7f8c8d;
   font-size: 0.75rem;
   text-transform: uppercase;
 }
@@ -66,8 +69,8 @@ th {
   font-size: 0.8rem;
   font-weight: bold;
 }
-.waiting { background: #eee; }
-.ongoing { background: #e3f2fd; color: #1565c0; }
+.waiting { background: #eee; color: #666; }
+.ongoing { background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0; }
 .done { background: #e8f5e9; color: #2e7d32; }
 
 .btn-group {
@@ -76,14 +79,23 @@ th {
   justify-content: center;
 }
 .action-btn {
-  padding: 6px 10px;
-  font-size: 0.75rem;
+  padding: 6px 12px;
+  border: none;
   border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: bold;
   color: white;
 }
 .btn-og { background: #17a2b8; }
 .btn-done { background: #28a745; }
+.btn-pass { background: #6c757d; }
 .btn-delete { background: #dc3545; }
+
+.time-text, .result-text {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+}
 </style>
 
 <!-- ✅ SUPABASE SDK -->
@@ -93,10 +105,7 @@ th {
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwb3pkbWxmbXlxaWtlc2dqaXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMjQ2NjYsImV4cCI6MjA5MTYwMDY2Nn0.a60aUUFBP-4HaGKKxfwpRJKk73Z8WNJX_N_G3SMuJso";
 
   const { createClient } = window.supabase;
-  const supabaseClient = createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
+  const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 </script>
 </head>
 
@@ -113,10 +122,11 @@ th {
     <thead>
       <tr>
         <th>Name</th>
-        <th>Start</th>
-        <th>End</th>
+        <th>Start Time</th>
+        <th>End Time</th>
         <th>Status</th>
-        <th>Actions</th>
+        <th>Remarks</th>
+        <th>Time Consumed</th>
       </tr>
     </thead>
     <tbody id="queueBody"></tbody>
@@ -133,11 +143,18 @@ window.onload = () => {
   loadFromDB();
 
   // ✅ Auto-refresh every 30 seconds
-  setInterval(() => {
-    loadFromDB();
-    console.log("Auto-refresh at", new Date().toLocaleTimeString());
-  }, 30000);
+  setInterval(loadFromDB, 30000);
 };
+
+function calculateDiff(ms) {
+  let s = Math.floor(ms / 1000);
+  let m = Math.floor(s / 60);
+  let h = Math.floor(m / 60);
+  s %= 60; m %= 60;
+  if (h === 0 && m === 0) return `${s} secs`;
+  if (h === 0) return `${m}:${s.toString().padStart(2,"0")} mins`;
+  return `${h}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")} hr`;
+}
 
 async function loadFromDB() {
   const { data, error } = await supabaseClient
@@ -145,33 +162,28 @@ async function loadFromDB() {
     .select("*")
     .order("created_at", { ascending: true });
 
-  if (error) {
-    console.error(error);
-    return;
-  }
+  if (error) return console.error(error);
 
   queueBody.innerHTML = "";
-  data.forEach(row => createRow(row));
+  data.forEach(createRow);
 }
 
 function createRow(item) {
   const tr = document.createElement("tr");
   tr.innerHTML = `
-    <td>${item.name}</td>
-    <td>${item.start_time ?? "--"}</td>
-    <td>${item.end_time ?? "--"}</td>
-    <td>
-      <span class="status-pill ${item.status.toLowerCase().replace("-", "")}">
-        ${item.status}
-      </span>
-    </td>
+    <td><strong>${item.name}</strong></td>
+    <td class="time-text">${item.start_time ?? "--:--:--"}</td>
+    <td class="time-text">${item.end_time ?? "--:--:--"}</td>
+    <td><span class="status-pill ${item.status.toLowerCase().replace("-", "")}">${item.status}</span></td>
     <td>
       <div class="btn-group">
-        <button class="action-btn btn-og" onclick="setOngoing('${item.name}')">On</button>
-        <button class="action-btn btn-done" onclick="setDone('${item.name}')">Done</button>
-        <button class="action-btn btn-delete" onclick="deleteRow('${item.name}')">X</button>
+        <button class="action-btn btn-og" onclick="setOngoing(${item.id})" ${item.status !== "Waiting" ? "disabled" : ""}>On-going</button>
+        <button class="action-btn btn-done" onclick="setDone(${item.id}, ${item.started_at ?? 0})" ${item.status !== "On-going" ? "disabled" : ""}>Done</button>
+        <button class="action-btn btn-pass" onclick="passRow(${item.id})" ${item.status === "Done" ? "disabled" : ""}>Pass</button>
+        <button class="action-btn btn-delete" onclick="deleteRow(${item.id})">X</button>
       </div>
     </td>
+    <td class="result-text">${item.time_consumed ?? "--"}</td>
   `;
   queueBody.appendChild(tr);
 }
@@ -180,44 +192,63 @@ async function addToQueue() {
   const name = nameInput.value.trim();
   if (!name) return;
 
-  const { error } = await supabaseClient
-    .from("queue")
-    .insert([{ name, status: "Waiting" }]);
-
-  if (error) {
-    alert(error.message);
-    return;
-  }
+  await supabaseClient.from("queue").insert([
+    { name, status: "Waiting" }
+  ]);
 
   nameInput.value = "";
   loadFromDB();
 }
 
-async function setOngoing(name) {
+async function setOngoing(id) {
+  const { data } = await supabaseClient
+    .from("queue")
+    .select("id")
+    .eq("status", "On-going");
+
+  if (data.length > 0) {
+    alert("Finish the active 'On-going' task first!");
+    return;
+  }
+
+  const now = new Date();
   await supabaseClient.from("queue").update({
     status: "On-going",
-    start_time: new Date().toLocaleTimeString()
-  }).eq("name", name);
+    start_time: now.toLocaleTimeString(),
+    started_at: now.getTime()
+  }).eq("id", id);
 
   loadFromDB();
 }
 
-async function setDone(name) {
+async function setDone(id, startedAt) {
+  const now = new Date();
+  const consumed = startedAt ? calculateDiff(now.getTime() - startedAt) : "--";
+
   await supabaseClient.from("queue").update({
     status: "Done",
-    end_time: new Date().toLocaleTimeString()
-  }).eq("name", name);
+    end_time: now.toLocaleTimeString(),
+    time_consumed: consumed
+  }).eq("id", id);
 
   loadFromDB();
 }
 
-async function deleteRow(name) {
+async function passRow(id) {
+  await supabaseClient.from("queue").update({
+    status: "Waiting",
+    start_time: null,
+    end_time: null,
+    started_at: null,
+    time_consumed: null
+  }).eq("id", id);
+
+  loadFromDB();
+}
+
+async function deleteRow(id) {
   if (!confirm("Delete this record?")) return;
-
-  await supabaseClient.from("queue")
-    .delete()
-    .eq("name", name);
-
+  await supabaseClient.from("queue").delete().eq("id", id);
   loadFromDB();
 }
 </script>
