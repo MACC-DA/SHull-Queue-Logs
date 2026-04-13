@@ -142,8 +142,10 @@ window.onload = () => {
 
   loadFromDB();
 
-  // ✅ Auto-refresh every 30 seconds
-  setInterval(loadFromDB, 30000);
+  // ✅ Auto-refresh every 30 seconds (safe)
+  setInterval(() => {
+    loadFromDB();
+  }, 30000);
 };
 
 function calculateDiff(ms) {
@@ -162,25 +164,48 @@ async function loadFromDB() {
     .select("*")
     .order("created_at", { ascending: true });
 
-  if (error) return console.error(error);
+  if (error || !Array.isArray(data)) {
+    console.error("Load error:", error?.message);
+    return;
+  }
 
   queueBody.innerHTML = "";
   data.forEach(createRow);
 }
 
 function createRow(item) {
+  if (!item || item.id == null) return;
+
+  const id = Number(item.id);
+
   const tr = document.createElement("tr");
   tr.innerHTML = `
     <td><strong>${item.name}</strong></td>
     <td class="time-text">${item.start_time ?? "--:--:--"}</td>
     <td class="time-text">${item.end_time ?? "--:--:--"}</td>
-    <td><span class="status-pill ${item.status.toLowerCase().replace("-", "")}">${item.status}</span></td>
+    <td><span class="status-pill ${item.status.toLowerCase().replace("-", "")}">
+      ${item.status}</span></td>
     <td>
       <div class="btn-group">
-        <button class="action-btn btn-og" onclick="setOngoing(${item.id})" ${item.status !== "Waiting" ? "disabled" : ""}>On-going</button>
-        <button class="action-btn btn-done" onclick="setDone(${item.id}, ${item.started_at ?? 0})" ${item.status !== "On-going" ? "disabled" : ""}>Done</button>
-        <button class="action-btn btn-pass" onclick="passRow(${item.id})" ${item.status === "Done" ? "disabled" : ""}>Pass</button>
-        <button class="action-btn btn-delete" onclick="deleteRow(${item.id})">X</button>
+        <button class="action-btn btn-og"
+          onclick="setOngoing(${id})"
+          ${item.status !== "Waiting" ? "disabled" : ""}>
+          On-going
+        </button>
+        <button class="action-btn btn-done"
+          onclick="setDone(${id}, ${item.started_at ?? 0})"
+          ${item.status !== "On-going" ? "disabled" : ""}>
+          Done
+        </button>
+        <button class="action-btn btn-pass"
+          onclick="passRow(${id})"
+          ${item.status === "Done" ? "disabled" : ""}>
+          Pass
+        </button>
+        <button class="action-btn btn-delete"
+          onclick="deleteRow(${id})">
+          X
+        </button>
       </div>
     </td>
     <td class="result-text">${item.time_consumed ?? "--"}</td>
@@ -206,7 +231,7 @@ async function setOngoing(id) {
     .select("id")
     .eq("status", "On-going");
 
-  if (data.length > 0) {
+  if (Array.isArray(data) && data.length > 0) {
     alert("Finish the active 'On-going' task first!");
     return;
   }
@@ -216,20 +241,22 @@ async function setOngoing(id) {
     status: "On-going",
     start_time: now.toLocaleTimeString(),
     started_at: now.getTime()
-  }).eq("id", id);
+  }).eq("id", Number(id));
 
   loadFromDB();
 }
 
 async function setDone(id, startedAt) {
   const now = new Date();
-  const consumed = startedAt ? calculateDiff(now.getTime() - startedAt) : "--";
+  const consumed = startedAt
+    ? calculateDiff(now.getTime() - startedAt)
+    : "--";
 
   await supabaseClient.from("queue").update({
     status: "Done",
     end_time: now.toLocaleTimeString(),
     time_consumed: consumed
-  }).eq("id", id);
+  }).eq("id", Number(id));
 
   loadFromDB();
 }
@@ -241,16 +268,17 @@ async function passRow(id) {
     end_time: null,
     started_at: null,
     time_consumed: null
-  }).eq("id", id);
+  }).eq("id", Number(id));
 
   loadFromDB();
 }
 
 async function deleteRow(id) {
   if (!confirm("Delete this record?")) return;
-  await supabaseClient.from("queue").delete().eq("id", id);
+  await supabaseClient.from("queue").delete().eq("id", Number(id));
   loadFromDB();
 }
 </script>
 </body>
 </html>
+``
