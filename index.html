@@ -138,13 +138,13 @@ let queueBody, nameInput, currentData = [];
 
 /* ✅ FIXED EMAIL RECIPIENTS */
 const EMAIL_TO = "mark.anthony.colegado@tsuneishi.com";
-const EMAIL_CC = "";
+/* const EMAIL_CC = ""; */
 
 /* ✅ Outlook mail helper */
 function openOutlookEmail(subject, body) {
   const mailto =
     `mailto:${encodeURIComponent(EMAIL_TO)}` +
-    `?cc=${encodeURIComponent(EMAIL_CC)}` +
+    /*`?cc=${encodeURIComponent(EMAIL_CC)}` +*/
     `&subject=${encodeURIComponent(subject)}` +
     `&body=${encodeURIComponent(body)}`;
   window.open(mailto, "_blank");
@@ -235,8 +235,8 @@ async function setOngoing(id) {
   }).eq("id",id);
 
   openOutlookEmail(
-    `🟡 Task Started: ${row.name}`,
-    `Task set to ON-GOING.\n\nTask: ${row.name}\nStart: ${now.toLocaleTimeString()}\n\n— SHull Queue`
+    `Smarthull License - ON-GOING: ${row.name}`,
+    `Process ON-GOING.\n\nUser: ${row.name}\nStart: ${now.toLocaleTimeString()}\n\n— SHull Queue`
   );
 
   loadFromDB();
@@ -255,8 +255,8 @@ async function setDone(id) {
   }).eq("id",id);
 
   openOutlookEmail(
-    `✅ Task Completed: ${row.name}`,
-    `Task COMPLETED.\n\nTask: ${row.name}\nStart: ${row.start_time}\nEnd: ${now.toLocaleTimeString()}\nTime: ${consumed}\n\n— SHull Queue`
+    `Smarthull License - Completed: ${row.name}`,
+    `Process COMPLETED.\n\nTask: ${row.name}\nStart: ${row.start_time}\nEnd: ${now.toLocaleTimeString()}\nTime: ${consumed}\n\n— SHull Queue`
   );
 
   loadFromDB();
@@ -276,8 +276,8 @@ async function passRow(id) {
   }).eq("id",id);
 
   openOutlookEmail(
-    `⏩ Task Passed: ${row.name}`,
-    `Task has been PASSED.\n\nTask: ${row.name}\nAction: Returned to queue\n\n— SHull Queue`
+    `Smarthull License - Passed: ${row.name}`,
+    `PASSED.\n\nTask: ${row.name}\nAction: Returned to queue\n\n— SHull Queue`
   );
 
   loadFromDB();
