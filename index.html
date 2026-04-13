@@ -114,7 +114,7 @@ const supabaseClient = window.supabase.createClient(
   <h2>SHull Queue Controller</h2>
 
   <div class="input-group">
-    <input id="nameInput" placeholder="Enter Client or Task Name">
+    <input id="nameInput" placeholder="SmartHULL User">
     <button class="add-btn" onclick="addToQueue()">Add to Queue</button>
   </div>
 
@@ -160,6 +160,15 @@ function openOutlookEmail(subject, body) {
 window.onload = () => {
   queueBody = document.getElementById("queueBody");
   nameInput = document.getElementById("nameInput");
+
+  // ✅ Add via Enter key
+  nameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addToQueue();
+    }
+  });
+
   loadFromDB();
   setInterval(loadFromDB, 30000);
 };
