@@ -65,7 +65,11 @@ th {
 .waiting { background: #eee; }
 .ongoing { background: #e3f2fd; color: #1565c0; }
 .done { background: #e8f5e9; color: #2e7d32; }
-.btn-group { display: flex; gap: 6px; justify-content: center; }
+.btn-group {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
 .action-btn {
   padding: 6px 10px;
   font-size: 0.75rem;
@@ -78,7 +82,8 @@ th {
 </style>
 
 <!-- ✅ SUPABASE SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2ript>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
   const SUPABASE_URL = "https://dpozdmlfmyqikesgjiur.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwb3pkbWxmbXlxaWtlc2dqaXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMjQ2NjYsImV4cCI6MjA5MTYwMDY2Nn0.a60aUUFBP-4HaGKKxfwpRJKk73Z8WNJX_N_G3SMuJso";
 
@@ -113,8 +118,19 @@ th {
 </div>
 
 <script>
-const queueBody = document.getElementById("queueBody");
-const nameInput = document.getElementById("nameInput");
+let queueBody, nameInput;
+
+window.onload = () => {
+  queueBody = document.getElementById("queueBody");
+  nameInput = document.getElementById("nameInput");
+
+  if (!window.supabase) {
+    alert("Supabase failed to load.");
+    return;
+  }
+
+  loadFromDB();
+};
 
 async function loadFromDB() {
   const { data, error } = await supabase
@@ -158,9 +174,9 @@ async function addToQueue() {
   const name = nameInput.value.trim();
   if (!name) return;
 
-  const { error } = await supabase.from("queue").insert([
-    { name, status: "Waiting" }
-  ]);
+  const { error } = await supabase
+    .from("queue")
+    .insert([{ name, status: "Waiting" }]);
 
   if (error) {
     alert(error.message);
@@ -176,6 +192,7 @@ async function setOngoing(name) {
     status: "On-going",
     start_time: new Date().toLocaleTimeString()
   }).eq("name", name);
+
   loadFromDB();
 }
 
@@ -184,16 +201,19 @@ async function setDone(name) {
     status: "Done",
     end_time: new Date().toLocaleTimeString()
   }).eq("name", name);
+
   loadFromDB();
 }
 
 async function deleteRow(name) {
   if (!confirm("Delete this record?")) return;
-  await supabase.from("queue").delete().eq("name", name);
+
+  await supabase.from("queue")
+    .delete()
+    .eq("name", name);
+
   loadFromDB();
 }
-
-window.onload = loadFromDB;
 </script>
 </body>
 </html>
