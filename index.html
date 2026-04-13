@@ -142,13 +142,20 @@ const EMAIL_CC = "";
 
 /* ✅ Outlook mail helper */
 function openOutlookEmail(subject, body) {
-  const mailto =
-    `mailto:${encodeURIComponent(EMAIL_TO)}` +
-    `?cc=${encodeURIComponent(EMAIL_CC)}` +
-    `&subject=${encodeURIComponent(subject)}` +
-    `&body=${encodeURIComponent(body)}`;
+  let mailto = `mailto:${encodeURIComponent(EMAIL_TO)}`;
+  let params = [];
+
+  if (EMAIL_CC && EMAIL_CC.trim() !== "") {
+    params.push(`cc=${encodeURIComponent(EMAIL_CC)}`);
+  }
+
+  params.push(`subject=${encodeURIComponent(subject)}`);
+  params.push(`body=${encodeURIComponent(body)}`);
+
+  mailto += `?${params.join("&")}`;
   window.open(mailto, "_blank");
 }
+
 
 window.onload = () => {
   queueBody = document.getElementById("queueBody");
