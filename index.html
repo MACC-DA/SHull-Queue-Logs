@@ -27,6 +27,14 @@ h2 {
   padding-bottom:10px;
   margin-bottom:20px;
 }
+
+.auth-box {
+  background:#f8f9fa;
+  padding:15px;
+  border-radius:8px;
+  margin-bottom:20px;
+}
+
 .input-group {
   display:flex;
   gap:10px;
@@ -94,9 +102,11 @@ th {
   font-family:monospace;
   font-weight:bold;
 }
+
+.hidden { display:none; }
 </style>
 
-<!-- ✅ SUPABASE SDK (CORRECT) -->
+<!-- ✅ SUPABASE SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL = "https://dpozdmlfmyqikesgjiur.supabase.co";
@@ -111,6 +121,21 @@ const supabaseClient = window.supabase.createClient(
 
 <body>
 <div class="container">
+
+  <!-- ✅ AUTH UI -->
+  <div class="auth-box">
+    <h3>Team Login</h3>
+    <input id="emailInput" placeholder="Email">
+    <input id="passwordInput" type="password" placeholder="Password">
+
+    <button onclick="registerUser()">Create Account</button>
+    <button onclick="loginUser()">Login</button>
+    <button onclick="logoutUser()" id="logoutBtn" class="hidden">Logout</button>
+
+    <p id="authStatus"></p>
+  </div>
+
+  <!-- ✅ QUEUE UI -->
   <h2>SHull Queue Controller</h2>
 
   <div class="input-group">
@@ -134,175 +159,93 @@ const supabaseClient = window.supabase.createClient(
 </div>
 
 <script>
+let currentUser = null;
 let queueBody, nameInput, currentData = [];
 
-/* ✅ FIXED EMAIL RECIPIENTS */
-const EMAIL_TO = "reponte michelle mhe <michelle.mhe.reponte@tsuneishi.com>; daniel maria elizabeth <maria.elizabeth.daniel@tsuneishi.com>; oacan rolly <rolly.oacan@tsuneishi.com>; abejar jomar <jomar.abejar@tsuneishi.com>; barbero beverly marie <beverly.marie.barbero@tsuneishi.com>; lastrado leonard joshua <leonard.joshua.lastrado@tsuneishi.com>; tenebro christian lieg <christian.lieg.tenebro@tsuneishi.com>; bedico joseph roi <joseph.roi.bedico@tsuneishi.com>; lacuna carlo <carlo.lacuna@tsuneishi.com>; saludo ma. fatima <ma.fatima.saludo@tsuneishi.com>; rabanes angelie <angelie.rabanes@tsuneishi.com>; solon joseph <joseph.solon@tsuneishi.com>; calledo juancho <juancho.calledo@tsuneishi.com>; pagula john mark <john.mark.pagula@tsuneishi.com>; sotto jason <jason.sotto@tsuneishi.com>; dayot jerson <jerson.dayot@tsuneishi.com>; luca leanne grace <leanne.grace.luca@tsuneishi.com>; juablar charwin <charwin.juablar@tsuneishi.com>; mallorca riza mae <riza.mae.mallorca@tsuneishi.com>; montes shawn rey <shawn.rey.montes@tsuneishi.com>; fernandez aljohn <aljohn.fernandez@tsuneishi.com>; arobo john gualbert <john.gualbert.arobo@tsuneishi.com>; colegado mark anthony <mark.anthony.colegado@tsuneishi.com>";
-const EMAIL_CC = "";
-
-/* ✅ Outlook mail helper */
-function openOutlookEmail(subject, body) {
-  let mailto = `mailto:${encodeURIComponent(EMAIL_TO)}`;
-  let params = [];
-
-  if (EMAIL_CC && EMAIL_CC.trim() !== "") {
-    params.push(`cc=${encodeURIComponent(EMAIL_CC)}`);
-  }
-
-  params.push(`subject=${encodeURIComponent(subject)}`);
-  params.push(`body=${encodeURIComponent(body)}`);
-
-  mailto += `?${params.join("&")}`;
-  window.open(mailto, "_blank");
+/* ✅ AUTH FUNCTIONS */
+async function registerUser() {
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  const { error } = await supabaseClient.auth.signUp({ email, password });
+  authStatus.innerText = error ? error.message : "Account created. Please login.";
 }
 
+async function loginUser() {
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+  if (error) return authStatus.innerText = error.message;
+  currentUser = data.user;
+  authStatus.innerText = `Logged in as ${currentUser.email}`;
+  logoutBtn.classList.remove("hidden");
+}
+
+async function logoutUser() {
+  await supabaseClient.auth.signOut();
+  currentUser = null;
+  authStatus.innerText = "Logged out";
+  logoutBtn.classList.add("hidden");
+}
+
+/* ✅ SESSION RESTORE */
+supabaseClient.auth.getSession().then(({ data }) => {
+  if (data.session) {
+    currentUser = data.session.user;
+    authStatus.innerText = `Logged in as ${currentUser.email}`;
+    logoutBtn.classList.remove("hidden");
+  }
+});
 
 window.onload = () => {
   queueBody = document.getElementById("queueBody");
   nameInput = document.getElementById("nameInput");
 
-  // ✅ Add via Enter key
-  nameInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      addToQueue();
-    }
+  nameInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") addToQueue();
   });
 
   loadFromDB();
   setInterval(loadFromDB, 30000);
 };
 
-function calculateDiff(ms) {
-  let s=Math.floor(ms/1000), m=Math.floor(s/60), h=Math.floor(m/60);
-  s%=60; m%=60;
-  if(!h && !m) return `${s} secs`;
-  if(!h) return `${m}:${s.toString().padStart(2,"0")} mins`;
-  return `${h}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")} hr`;
-}
-
-async function loadFromDB() {
-  const { data } = await supabaseClient
-    .from("queue")
-    .select("*")
-    .order("sort_order", { ascending:true });
-
-  if(!Array.isArray(data)) return;
-  currentData = data;
-  queueBody.innerHTML = "";
-  data.forEach(createRow);
-}
-
-function createRow(item) {
-  const id = Number(item.id);
-  const hasOngoing = currentData.some(r => r.status === "On-going");
-  let actions = "";
-
-  if(item.status === "Waiting") {
-    if(!hasOngoing) {
-      actions += `<button class="action-btn btn-og" onclick="setOngoing(${id})">On-going</button>`;
-    }
-    actions += `
-      <button class="action-btn btn-pass" onclick="passRow(${id})">Pass</button>
-      <button class="action-btn btn-delete" onclick="deleteRow(${id})">X</button>
-    `;
-  } else if(item.status === "On-going") {
-    actions = `<button class="action-btn btn-done" onclick="setDone(${id})">Done</button>`;
-  }
-
-  queueBody.innerHTML += `
-    <tr>
-      <td><strong>${item.name}</strong></td>
-      <td class="time-text">${item.start_time ?? "--"}</td>
-      <td class="time-text">${item.end_time ?? "--"}</td>
-      <td><span class="status-pill ${item.status.toLowerCase().replace("-","")}">${item.status}</span></td>
-      <td><div class="btn-group">${actions}</div></td>
-      <td class="result-text">${item.time_consumed ?? "--"}</td>
-    </tr>`;
-}
-
+/* ✅ QUEUE PROTECTED BY LOGIN */
 async function addToQueue() {
+  if (!currentUser) return alert("Please log in first.");
+
   const name = nameInput.value.trim();
   if(!name) return;
 
   await supabaseClient.from("queue").insert([{
     name,
     status:"Waiting",
-    sort_order:Date.now()
+    sort_order:Date.now(),
+    created_by: currentUser.email
   }]);
 
   nameInput.value="";
   loadFromDB();
 }
 
-/* ✅ ON-GOING → EMAIL */
-async function setOngoing(id) {
-  const row = currentData.find(r => r.id === id);
-  if(currentData.some(r => r.status === "On-going")) {
-    alert("Finish active task first.");
-    return;
-  }
+async function loadFromDB() {
+  const { data } = await supabaseClient.from("queue")
+    .select("*")
+    .order("sort_order");
 
-  const now = new Date();
-  await supabaseClient.from("queue").update({
-    status:"On-going",
-    start_time: now.toLocaleTimeString(),
-    started_at: now.getTime()
-  }).eq("id",id);
-
-  openOutlookEmail(
-    `Smarthull License - ON-GOING: ${row.name}`,
-    `Process ON-GOING.\n\nUser: ${row.name}\nStart: ${now.toLocaleTimeString()}\n\n— SHull Queue https://macc-da.github.io/SHull-Queue-Logs/`
-  );
-
-  loadFromDB();
-}
-
-/* ✅ DONE → EMAIL */
-async function setDone(id) {
-  const row = currentData.find(r => r.id === id);
-  const now = new Date();
-  const consumed = calculateDiff(now.getTime() - row.started_at);
-
-  await supabaseClient.from("queue").update({
-    status:"Done",
-    end_time: now.toLocaleTimeString(),
-    time_consumed: consumed
-  }).eq("id",id);
-
-  openOutlookEmail(
-    `Smarthull License - Completed: ${row.name}`,
-    `Process COMPLETED.\n\nUser: ${row.name}\nStart: ${row.start_time}\nEnd: ${now.toLocaleTimeString()}\nTime: ${consumed}\n\n— SHull Queue https://macc-da.github.io/SHull-Queue-Logs/`
-  );
-
-  loadFromDB();
-}
-
-/* ✅ PASS → EMAIL */
-async function passRow(id) {
-  const row = currentData.find(r => r.id === id);
-
-  await supabaseClient.from("queue").update({
-    status:"Waiting",
-    start_time:null,
-    end_time:null,
-    started_at:null,
-    time_consumed:null,
-    sort_order:Date.now()
-  }).eq("id",id);
-
-  openOutlookEmail(
-    `Smarthull License - Passed: ${row.name}`,
-    `PASSED.\n\nUser: ${row.name}\nAction: Returned to queue\n\n— SHull Queue https://macc-da.github.io/SHull-Queue-Logs/`
-  );
-
-  loadFromDB();
-}
-
-async function deleteRow(id) {
-  if(!confirm("Delete this record?")) return;
-  await supabaseClient.from("queue").delete().eq("id",id);
-  loadFromDB();
+  if(!Array.isArray(data)) return;
+  currentData = data;
+  queueBody.innerHTML="";
+  data.forEach(row => {
+    queueBody.innerHTML += `
+      <tr>
+        <td>${row.name}</td>
+        <td>${row.start_time ?? "--"}</td>
+        <td>${row.end_time ?? "--"}</td>
+        <td><span class="status-pill ${row.status.toLowerCase()}">${row.status}</span></td>
+        <td>—</td>
+        <td>${row.time_consumed ?? "--"}</td>
+      </tr>`;
+  });
 }
 </script>
 </body>
