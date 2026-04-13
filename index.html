@@ -144,7 +144,7 @@ const EMAIL_TO = "mark.anthony.colegado@tsuneishi.com";
 function openOutlookEmail(subject, body) {
   const mailto =
     `mailto:${encodeURIComponent(EMAIL_TO)}` +
-    /*`?cc=${encodeURIComponent(EMAIL_CC)}` +*/
+    `?cc=${encodeURIComponent(EMAIL_CC)}` +
     `&subject=${encodeURIComponent(subject)}` +
     `&body=${encodeURIComponent(body)}`;
   window.open(mailto, "_blank");
