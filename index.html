@@ -92,7 +92,6 @@ th {
   const SUPABASE_URL = "https://dpozdmlfmyqikesgjiur.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwb3pkbWxmbXlxaWtlc2dqaXVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMjQ2NjYsImV4cCI6MjA5MTYwMDY2Nn0.a60aUUFBP-4HaGKKxfwpRJKk73Z8WNJX_N_G3SMuJso";
 
-  // ✅ Correct v2 pattern
   const { createClient } = window.supabase;
   const supabaseClient = createClient(
     SUPABASE_URL,
@@ -130,7 +129,14 @@ let queueBody, nameInput;
 window.onload = () => {
   queueBody = document.getElementById("queueBody");
   nameInput = document.getElementById("nameInput");
+
   loadFromDB();
+
+  // ✅ Auto-refresh every 30 seconds
+  setInterval(() => {
+    loadFromDB();
+    console.log("Auto-refresh at", new Date().toLocaleTimeString());
+  }, 30000);
 };
 
 async function loadFromDB() {
@@ -141,7 +147,6 @@ async function loadFromDB() {
 
   if (error) {
     console.error(error);
-    alert(error.message);
     return;
   }
 
@@ -173,18 +178,14 @@ function createRow(item) {
 
 async function addToQueue() {
   const name = nameInput.value.trim();
-  if (!name) {
-    alert("Name is required");
-    return;
-  }
+  if (!name) return;
 
   const { error } = await supabaseClient
     .from("queue")
     .insert([{ name, status: "Waiting" }]);
 
   if (error) {
-    console.error(error);
-    alert("Insert failed: " + error.message);
+    alert(error.message);
     return;
   }
 
